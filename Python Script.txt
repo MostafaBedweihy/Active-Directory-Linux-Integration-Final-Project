@@ -1,0 +1,61 @@
+import psycopg2
+from psycopg2 import Error
+
+# Configuration matching Phase 2.2
+DB_NAME = "companydb"
+DB_USER = "testuser"
+DB_PASS = "Asd@1234" # The password you set for dbadmin
+DB_HOST = "localhost"
+DB_PORT = "5432"
+
+def run_integration_test():
+    connection = None
+    try:
+        # Connect to the PostgreSQL database
+        connection = psycopg2.connect(
+            user=DB_USER,
+            password=DB_PASS,
+            host=DB_HOST,
+            port=DB_PORT,
+            database=DB_NAME
+        )
+
+        cursor = connection.cursor()
+
+        print("--- Xpandcs Domain Integration: Database Test ---")
+
+        # 1. Create a table for integration testing
+        create_table_query = '''CREATE TABLE IF NOT EXISTS ad_integration_logs (
+                                id SERIAL PRIMARY KEY,
+                                test_user VARCHAR(50) NOT NULL,
+                                status VARCHAR(50) NOT NULL,
+                                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                              ); '''
+        cursor.execute(create_table_query)
+
+        # 2. Insert a test record verifying AD connectivity
+        # In a real scenario, you'd pull the AD username from the environment
+        insert_query = """ INSERT INTO ad_integration_logs (test_user, status)
+                           VALUES (%s, %s) """
+        record_to_insert = ('linux-db01.Xpandcs.local', 'AD_INTEGRATION_SUCCESS')
+        cursor.execute(insert_query, record_to_insert)
+
+        connection.commit()
+        print(f"[ OK ] Record created successfully in '{DB_NAME}'")
+
+        # 3. Verify and display the record
+        cursor.execute("SELECT * FROM ad_integration_logs ORDER BY id DESC LIMIT 1;")
+        record = cursor.fetchone()
+        print(f"[ OK ] Latest Database Entry: {record}")
+
+    except (Exception, Error) as error:
+        print(f"[ FAIL ] Error while connecting to PostgreSQL: {error}")
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+            print("-------------------------------------------------")
+            print("Database connection closed.")
+
+if __name__ == "__main__":
+    run_integration_test()

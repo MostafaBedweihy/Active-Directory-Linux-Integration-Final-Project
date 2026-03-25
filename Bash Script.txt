@@ -1,0 +1,49 @@
+#!/bin/bash
+# ad-integration-check.sh
+# Verifies AD connectivity for Xpandcs.local with color coding
+
+# Define Colors
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+DOMAIN="Xpandcs.local"
+DC_IP="192.168.1.10"
+
+echo "-----------------------------------------------"
+echo -e "Checking AD Integration for: ${GREEN}$DOMAIN${NC}"
+echo "-----------------------------------------------"
+
+# 1. Test DNS Resolution
+echo -n "1. DNS Resolution: "
+if host $DOMAIN > /dev/null 2>&1; then
+    echo -e "[ ${GREEN}OK${NC} ]"
+else
+    echo -e "[ ${RED}FAIL${NC} ] (Check DNS settings to $DC_IP)"
+fi
+
+# 2. Check Domain Join Status
+echo -n "2. Domain Join Status: "
+if realm list | grep -q "$DOMAIN"; then
+    echo -e "[ ${GREEN}OK${NC} ]"
+else
+    echo -e "[ ${RED}FAIL${NC} ] (Machine not joined)"
+fi
+
+# 3. Test Kerberos
+echo -n "3. Kerberos Ticket: "
+if klist -s; then
+    echo -e "[ ${GREEN}OK${NC} ]"
+else
+    echo -e "[ ${RED}FAIL${NC} ] (No active ticket. Run 'kinit')"
+fi
+
+# 4. SSSD Service
+echo -n "4. SSSD Service: "
+if systemctl is-active --quiet sssd; then
+    echo -e "[ ${GREEN}OK${NC} ]"
+else
+    echo -e "[ ${RED}FAIL${NC} ] (Service stopped)"
+fi
+
+echo "-----------------------------------------------"

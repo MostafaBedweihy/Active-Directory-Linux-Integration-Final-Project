@@ -1,0 +1,97 @@
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$reportFolder = "C:\DomainHealthReports"
+if (-not (Test-Path $reportFolder)) { New-Item -Path $reportFolder -ItemType Directory | Out-Null }
+
+$csvServices  = "$reportFolder\Services_$timestamp.csv"
+$csvComputers = "$reportFolder\Computers_$timestamp.csv"
+$htmlReport   = "$reportFolder\DomainHealth_$timestamp.html"
+
+# --- Header ---
+Write-Host "===============================================" -ForegroundColor Green
+Write-Host "           XPANDCS DOMAIN HEALTH REPORT" -ForegroundColor Green
+Write-Host "           Timestamp: $(Get-Date)" -ForegroundColor Green
+Write-Host "===============================================" -ForegroundColor Green
+
+# --- 1. Core Services Status ---
+$Services = @("ADWS", "DNS", "DHCPServer", "LanmanWorkstation")
+Write-Host "`n[1] Checking Core Services Status..." -ForegroundColor Yellow
+
+$ServiceReport = @()
+foreach ($svc in $Services) {
+    $status = Get-Service -Name $svc -ErrorAction SilentlyContinue
+    if ($status) {
+        if ($status.Status -eq "Running") {
+            Write-Host "[OK] $($status.DisplayName) is Running" -ForegroundColor Green
+            $ServiceReport += [PSCustomObject]@{
+                Name   = $status.DisplayName
+                Status = "Running"
+            }
+        } else {
+            Write-Host "[ERROR] $($svc) is $($status.Status)" -ForegroundColor Red
+            $ServiceReport += [PSCustomObject]@{
+                Name   = $svc
+                Status = $status.Status
+            }
+        }
+    } else {
+        Write-Host "[WARN] $svc not found" -ForegroundColor Gray
+        $ServiceReport += [PSCustomObject]@{
+            Name   = $svc
+            Status = "Not Found"
+        }
+    }
+}
+
+# --- 2. Domain-Joined Computers ---
+Write-Host "`n[2] Checking Domain Joined Computers..." -ForegroundColor Yellow
+$ComputerReport = @()
+try {
+    $Computers = Get-ADComputer -Filter * -Properties IPv4Address, Enabled, DNSHostName
+    foreach ($comp in $Computers) {
+        Write-Host "$($comp.Name) - $($comp.DNSHostName) - $($comp.IPv4Address)" -ForegroundColor Green
+        $ComputerReport += [PSCustomObject]@{
+            Name        = $comp.Name
+            DNSHostName = $comp.DNSHostName
+            IPAddress   = $comp.IPv4Address
+            Enabled     = $comp.Enabled
+        }
+    }
+} catch {
+    Write-Host "[ERROR] Could not query Active Directory." -ForegroundColor Red
+}
+
+# --- 3. Export CSV Reports ---
+$ServiceReport  | Export-Csv -Path $csvServices  -NoTypeInformation
+$ComputerReport | Export-Csv -Path $csvComputers -NoTypeInformation
+
+# --- 4. Generate HTML Report ---
+# Combine services + computers into one HTML file
+$combinedReport = @()
+$ServiceReport | ForEach-Object { 
+    $combinedReport += [PSCustomObject]@{
+        Type   = "Service"
+        Name   = $_.Name
+        Status = $_.Status
+        DNSHostName = ""
+        IPAddress   = ""
+        Enabled     = ""
+    }
+}
+
+$ComputerReport | ForEach-Object {
+    $combinedReport += [PSCustomObject]@{
+        Type        = "Computer"
+        Name        = $_.Name
+        Status      = ""
+        DNSHostName = $_.DNSHostName
+        IPAddress   = $_.IPAddress
+        Enabled     = $_.Enabled
+    }
+}
+
+$combinedReport | ConvertTo-Html -Property Type,Name,Status,DNSHostName,IPAddress,Enabled -Title "XPANDCS Domain Health Report" | Out-File $htmlReport
+
+# --- Completion Message ---
+Write-Host "`nHealth Check Complete!" -ForegroundColor Green
+Write-Host "Reports saved to $reportFolder" -ForegroundColor Green
+Write-Host "===============================================" -ForegroundColor Green
