@@ -4,21 +4,34 @@ This project simulates a real-world enterprise environment by integrating a Linu
 Project Deliverables
 
 Network Diagram - Visual representation of the Xpandcs infrastructure
+
 Windows Server Configuration - Fully configured AD DS, DNS, DHCP services for Xpandcs.local
+
 Linux Server - Database server integrated with Xpandcs Active Directory
+
 Script Case - Automation and monitoring scripts including:
+
 PowerShell domain health monitoring for Xpandcs
+
 Bash AD integration checking for Xpandcs.local
+
 Python integration testing
+
 Documentation - Complete implementation guide for Xpandcs domain
+
 Verification Procedures - Steps to validate the integration with Xpandcs domain
 
 
 Success Criteria
 
 Linux server successfully joined to Xpandcs Active Directory domain
+
 Database services running on Linux server
+
 Xpandcs AD users can authenticate to Linux server
+
 DNS resolution working between servers
+
 DHCP serving IP addresses to clients
+
 All scripts executing without errors
